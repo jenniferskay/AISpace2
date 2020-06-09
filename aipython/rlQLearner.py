@@ -1,5 +1,5 @@
 # rlQLearner.py - Q Learning
-# AIFCA Python3 code Version 0.7.1 Documentation at http://aipython.org
+# AIFCA Python3 code Version 0.8.1 Documentation at http://aipython.org
 
 # Artificial Intelligence: Foundations of Computational Agents
 # http://artint.info
@@ -9,15 +9,13 @@
 # See: http://creativecommons.org/licenses/by-nc-sa/4.0/deed.en
 
 import random
-
-from utilities import Displayable, argmax, flip
-
+from display import Displayable
+from utilities import argmax, flip
 
 class RL_agent(Displayable):
-    """An RL_Agent
+    """An RL_Agent 
     has percepts (s, r) for some state s and real reward r
     """
-
 
 class Q_learner(RL_agent):
     """A Q-learning agent has
@@ -31,7 +29,7 @@ class Q_learner(RL_agent):
     """
 
     def __init__(self, env, discount, explore=0.1, fixed_alpha=True, alpha=0.2,
-                 alpha_fun=lambda k: 1 / k,
+                 alpha_fun=lambda k:1/k,
                  qinit=0, label="Q_learner"):
         """env is the environment to interact with.
         discount is the discount factor
@@ -62,22 +60,22 @@ class Q_learner(RL_agent):
         self.q = {}
         self.visits = {}
 
-    def do(self, num_steps=100):
+    def do(self,num_steps=100):
         """do num_steps of interaction with the environment"""
-        self.display(2, "s\ta\tr\ts'\tQ")
+        self.display(2,"s\ta\tr\ts'\tQ")
         alpha = self.alpha
         for i in range(num_steps):
             action = self.select_action(self.state)
-            next_state, reward = self.env.do(action)
+            next_state,reward = self.env.do(action)
             if not self.fixed_alpha:
-                k = self.visits[(self.state, action)] = self.visits.get((self.state, action), 0) + 1
+                k = self.visits[(self.state, action)] = self.visits.get((self.state, action),0)+1
                 alpha = self.alpha_fun(k)
             self.q[(self.state, action)] = (
-                (1 - alpha) * self.q.get((self.state, action), self.qinit)
+                (1-alpha) * self.q.get((self.state, action),self.qinit)
                 + alpha * (reward + self.discount
-                           * max(self.q.get((next_state, next_act), self.qinit)
-                                 for next_act in self.actions)))
-            self.display(2, self.state, action, reward, next_state,
+                                    * max(self.q.get((next_state, next_act),self.qinit)
+                                          for next_act in self.actions)))
+            self.display(2,self.state, action, reward, next_state, 
                          self.q[(self.state, action)], sep='\t')
             self.state = next_state
             self.acc_rewards += reward
@@ -89,5 +87,6 @@ class Q_learner(RL_agent):
         if flip(self.explore):
             return random.choice(self.actions)
         else:
-            return argmax((next_act, self.q.get((state, next_act), self.qinit))
-                          for next_act in self.actions)
+            return argmax((next_act, self.q.get((state, next_act),self.qinit))
+                                  for next_act in self.actions)
+

@@ -1,5 +1,5 @@
-# stripsHeuristic.py - Planner with Heursitic Function
-# AIFCA Python3 code Version 0.7.1 Documentation at http://aipython.org
+# stripsHeuristic.py - Planner with Heuristic Function
+# AIFCA Python3 code Version 0.8.1 Documentation at http://aipython.org
 
 # Artificial Intelligence: Foundations of Computational Agents
 # http://artint.info
@@ -8,63 +8,68 @@
 # Attribution-NonCommercial-ShareAlike 4.0 International License.
 # See: http://creativecommons.org/licenses/by-nc-sa/4.0/deed.en
 
-
-def heuristic_fun(state, goal):
-    """An (under)estimate of the cost of solving goal from state.
-    Both state and goal are variable:value dictionaries.
-    This heuristic is the maximum of
-    - the distance to the goal location, if there is one
-    - the distance to the coffee shop if the goal has SWC=False, node has SWC=True and RHC=False
+def dist(loc1, loc2):
+    """returns the distance from location loc1 to loc2
     """
-    return max(h1(state, goal), h2(state, goal))
+    if loc1==loc2:
+        return 0
+    if {loc1,loc2} in [{'cs','lab'},{'mr','off'}]:
+        return 2
+    else:
+        return 1
 
-
-def h1(state, goal):
+def h1(state,goal):
     """ the distance to the goal location, if there is one"""
     if 'RLoc' in goal:
         return dist(state['RLoc'], goal['RLoc'])
     else:
         return 0
 
-
-def h2(state, goal):
+def h2(state,goal):
     """ the distance to the coffee shop plus getting coffee and delivering it
-    if the goal has SWC=False, node has SWC=True and RHC=False
+    if the robot needs to get coffee
     """
-    if 'SWC' in goal and goal['SWC'] == False and state['SWC'] == True and state['RHC'] == False:
-        return dist(state['RLoc'], 'cs') + 3
+    if ('SWC' in goal and goal['SWC']==False 
+            and state['SWC']==True 
+            and state['RHC']==False):
+        return dist(state['RLoc'],'cs')+3
     else:
         return 0
-
-
-def dist(loc1, loc2):
-    """returns the distance from location loc1 to loc2
+        
+def maxh(*heuristics):
+    """Returns a new heuristic function that is the maximum of the functions in heuristics.
+    heuristics is the list of arguments which must be heuristic functions.
     """
-    if loc1 == loc2:
-        return 0
-    if {loc1, loc2} in [{'cs', 'lab'}, {'mr', 'off'}]:
-        return 2
-    else:
-        return 1
+    return lambda state,goal: max(h(state,goal) for h in heuristics)
 
 #####  Forward Planner #####
-#from aipython.searchGeneric import AStarSearcher
-#from aipython.searchMPP import SearcherMPP
-#from aipython.stripsForwardPlanner import Forward_STRIPS
-#from aipython.stripsProblem import strips_delivery1, strips_delivery2, strips_delivery3, strips_blocks1, strips_blocks2, strips_blocks3
-#thisproblem = strips_delivery1
+from searchGeneric import AStarSearcher
+from searchMPP import SearcherMPP
+from stripsForwardPlanner import Forward_STRIPS
+from stripsProblem import problem0, problem1, problem2, blocks1, blocks2, blocks3
 
-#print("\n***** FORWARD NO HEURISTIC")
-# print(SearcherMPP(Forward_STRIPS(thisproblem)).search())
+def test_forward_heuristic(thisproblem=problem1):
+    print("\n***** FORWARD NO HEURISTIC")
+    print(SearcherMPP(Forward_STRIPS(thisproblem)).search())
 
-#print("\n***** FORWARD WITH HEURISTIC")
-#print(SearcherMPP(Forward_STRIPS(thisproblem, heuristic_fun)).search())
+    print("\n***** FORWARD WITH HEURISTIC h1")
+    print(SearcherMPP(Forward_STRIPS(thisproblem,h1)).search()) 
 
-# Regression Planner
-#from aipython.stripsRegressionPlanner import Regression_STRIPS
+    print("\n***** FORWARD WITH HEURISTICs h1 and h2")
+    print(SearcherMPP(Forward_STRIPS(thisproblem,maxh(h1,h2))).search()) 
 
-#print("\n***** REGRESSION NO HEURISTIC")
-# print(SearcherMPP(Regression_STRIPS(thisproblem)).search())
+if __name__ == "__main__":
+    test_forward_heuristic()
 
-#print("\n***** REGRESSION WITH HEURISTIC")
-#print(SearcherMPP(Regression_STRIPS(thisproblem, heuristic_fun)).search())
+#####  Regression Planner
+from stripsRegressionPlanner import Regression_STRIPS
+
+def test_regression_heuristic(thisproblem=problem1):
+    print("\n***** REGRESSION NO HEURISTIC")
+    print(SearcherMPP(Regression_STRIPS(thisproblem)).search())
+
+    print("\n***** REGRESSION WITH HEURISTICs h1 and h2")
+    print(SearcherMPP(Regression_STRIPS(thisproblem,maxh(h1,h2))).search())
+
+if __name__ == "__main__":
+    test_regression_heuristic()

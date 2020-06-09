@@ -1,5 +1,5 @@
 # learnCoordinate.py - Learning to Coordinate
-# AIFCA Python3 code Version 0.7.1 Documentation at http://aipython.org
+# AIFCA Python3 code Version 0.8.1 Documentation at http://aipython.org
 
 # Artificial Intelligence: Foundations of Computational Agents
 # http://artint.info
@@ -10,9 +10,10 @@
 
 from learnProblem import Learner
 
-soccer = [[(-0.6, 0.6), (-0.3, 0.3)], [(-0.2, 0.2), (-0.9, 0.9)]]]
-football= [[(2, 1), (0, 0)], [(0, 0), (1, 2)]]
-prisoners_game= [[(100, 100), (0, 1100)], [(1100, 0), (1000, 1000)]]]
+soccer =  [[(-0.6,0.6),(-0.3,0.3)],[(-0.2,0.2),(-0.9,0.9)]]]
+football = [[(2,1),(0,0)],[(0,0),(1,2)]]
+prisoners_game = [[(100,100),(0,1100)],[(1100,0),(1000,1000)]]]
 
 class Policy_hill_climbing(Learner):
-    def __init__(self, game)
+    def __init__(self,game)
+

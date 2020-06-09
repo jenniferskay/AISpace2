@@ -1,5 +1,5 @@
 # cspConsistency.py - Arc Consistency and Domain splitting for solving a CSP
-# AIFCA Python3 code Version 0.7.1 Documentation at http://aipython.org
+# AIFCA Python3 code Version 0.8.1 Documentation at http://aipython.org
 
 # Artificial Intelligence: Foundations of Computational Agents
 # http://artint.info
@@ -8,11 +8,11 @@
 # Attribution-NonCommercial-ShareAlike 4.0 International License.
 # See: http://creativecommons.org/licenses/by-nc-sa/4.0/deed.en
 
-from aipython.searchProblem import Arc, Search_problem
-from aispace2.jupyter.csp import Displayable, visualize
-
+from display import Displayable
 
 class Con_solver(Displayable):
+    """Solves a CSP with arc consistency and domain splitting
+    """
     def __init__(self, csp, **kwargs):
         """a CSP solver that uses arc consistency
         * csp is the CSP to be solved
@@ -20,51 +20,55 @@ class Con_solver(Displayable):
         """
         self.csp = csp
         super().__init__(**kwargs)    # Or Displayable.__init__(self,**kwargs)
-
-    @visualize
+        
     def make_arc_consistent(self, orig_domains=None, to_do=None):
         """Makes this CSP arc-consistent using generalized arc consistency
         orig_domains is the original domains
         to_do is a set of (variable,constraint) pairs
-        returns the reduced domains
+        returns the reduced domains (an arc-consistent variable:domain dictionary)
         """
         if orig_domains is None:
             orig_domains = self.csp.domains
         if to_do is None:
-            to_do = {(var, const) for const in self.csp.constraints for var in const.scope}
+            to_do = {(var, const) for const in self.csp.constraints
+                     for var in const.scope}
         else:
             to_do = to_do.copy()  # use a copy of to_do
         domains = orig_domains.copy()
-        self.display(2, "Performing AC with domains", domains)
+        self.display(2,"Performing AC with domains", domains)
         while to_do:
             var, const = self.select_arc(to_do)
             self.display(3, "Processing arc (", var, ",", const, ")")
             other_vars = [ov for ov in const.scope if ov != var]
-            new_domain = {val for val in domains[var] if self.any_holds(domains, const, {var: val}, other_vars)}
+            new_domain = {val for val in domains[var]
+                            if self.any_holds(domains, const, {var: val}, other_vars)}
             if new_domain != domains[var]:
                 self.display(4, "Arc: (", var, ",", const, ") is inconsistent")
-                self.display(3, "Domain pruned", "dom(", var, ") =", new_domain, " due to ", const)
+                self.display(3, "Domain pruned", "dom(", var, ") =", new_domain,
+                                 " due to ", const)
                 domains[var] = new_domain
                 add_to_do = self.new_to_do(var, const) - to_do
                 to_do |= add_to_do      # set union
-                self.display(3, "Adding", add_to_do if add_to_do else "nothing", "to to_do.")
+                self.display(3, "  adding", add_to_do if add_to_do else "nothing", "to to_do.")
             self.display(4, "Arc: (", var, ",", const, ") now consistent")
-        self.display(4, "AC done. Reduced domains: ", domains)
+        self.display(2, "AC done. Reduced domains", domains)
         return domains
 
     def new_to_do(self, var, const):
         """returns new elements to be added to to_do after assigning
         variable var in constraint const.
         """
-        return {(nvar, nconst) for nconst in self.csp.var_to_const[var] if nconst != const
-                for nvar in nconst.scope if nvar != var}
+        return {(nvar, nconst) for nconst in self.csp.var_to_const[var]
+                if nconst != const
+                for nvar in nconst.scope
+                if nvar != var}
 
     def select_arc(self, to_do):
-        """Selects the arc to be taken from to_do.
+        """Selects the arc to be taken from to_do .
         * to_do is a set of arcs, where an arc is a (variable,constraint) pair
         the element selected must be removed from to_do.
         """
-        return self.visualizer.wait_for_arc_selection(to_do)
+        return to_do.pop() 
 
     def any_holds(self, domains, const, env, other_vars, ind=0):
         """returns True if Constraint const holds for an assignment
@@ -83,7 +87,6 @@ class Con_solver(Displayable):
                     return True
             return False
 
-    @visualize
     def solve_one(self, domains=None, to_do=None):
         """return a solution to the current CSP or False if there are no solutions
         to_do is the list of arcs to check
@@ -92,40 +95,34 @@ class Con_solver(Displayable):
             domains = self.csp.domains
         new_domains = self.make_arc_consistent(domains, to_do)
         if any(len(new_domains[var]) == 0 for var in domains):
-            self.display(1, "Click Step, Auto Arc Consistency or Auto Solve to find solutions in other domains.")
             return False
         elif all(len(new_domains[var]) == 1 for var in domains):
-            self.display(1, "Solution found:", {var: select(new_domains[var]) for var in new_domains})
-            if to_do is None:
-                self.display(4, "No more solutions since no more domains.")
+            self.display(2, "solution:", {var: select(
+                new_domains[var]) for var in new_domains})
+            return {var: select(new_domains[var]) for var in domains}
         else:
-            self.display(4, "You can now split domain. Click on a variable whose domain has more than 1 value.")
-            var = self.split_var(x for x in self.csp.variables if len(new_domains[x]) > 1)
+            var = self.select_var(x for x in self.csp.variables if len(new_domains[x]) > 1)
             if var:
-                dom1, dom2 = self.partition_domain(new_domains[var], var)
-                self.display(3, "... splitting", var, "into", dom1, "and", dom2)
-                new_doms1 = copy_with_assign(new_domains, var, dom1)
+                dom1, dom2 = partition_domain(new_domains[var])
+                self.display(3, "...splitting", var, "into", dom1, "and", dom2)
+                new_doms1 = copy_with_assign(new_domains, var, dom1)                
                 new_doms2 = copy_with_assign(new_domains, var, dom2)
                 to_do = self.new_to_do(var, None)
-                self.display(4, "Solving new domain with", var, dom1)
-                self.display(3, "New domain. Adding", to_do if to_do else "nothing", "to to_do.")
-                self.solve_one(new_doms1, to_do)
-                self.display(4, "Solving new domain with", var, dom2)
-                self.display(3, "New domain. Adding", to_do if to_do else "nothing", "to to_do.")
-                self.solve_one(new_doms2, to_do)
-                if domains == self.csp.domains:
-                    self.display(4, "No more solutions since no more domains.")
-                return
+                self.display(3, " adding", to_do if to_do else "nothing", "to to_do.")
+                return self.solve_one(new_doms1, to_do) or self.solve_one(new_doms2, to_do)
 
-    def split_var(self, iter_vars):
-        return self.visualizer.wait_for_var_selection(iter_vars)
+    def select_var(self, iter_vars):
+        """return the next variable to split"""
+        return select(iter_vars)
 
-    def partition_domain(self, dom, var):
-        """partitions domain dom into two.
-        """
-        return self.visualizer.choose_domain_partition(dom, var)
-
-
+def partition_domain(dom):
+    """partitions domain dom into two.
+    """
+    split = len(dom) // 2
+    dom1 = set(list(dom)[:split])
+    dom2 = dom - dom1
+    return dom1, dom2
+    
 def copy_with_assign(domains, var=None, new_domain={True, False}):
     """create a copy of the domains with an assignment var=new_domain
     if var==None then it is just a copy.
@@ -135,83 +132,83 @@ def copy_with_assign(domains, var=None, new_domain={True, False}):
         newdoms[var] = new_domain
     return newdoms
 
-
 def select(iterable):
     """select an element of iterable. Returns None if there is no such element.
 
     This implementation just picks the first element.
-    For many of the uses, which element is selected does not affect correctness,
+    For many of the uses, which element is selected does not affect correctness, 
     but may affect efficiency.
     """
     for e in iterable:
         return e  # returns first element found
 
-# from aipython.cspProblem import test
-# def ac_solver(csp):
-#     "arc consistency (solve_one)"
-#     return Con_solver(csp).solve_one()
-# if __name__ == "__main__":
-#     test(ac_solver)
+from cspExamples import test
+def ac_solver(csp):
+    "arc consistency (solve_one)"
+    return Con_solver(csp).solve_one()
+if __name__ == "__main__":
+    test(ac_solver)
 
+from searchProblem import Arc, Search_problem
 
-class Search_with_AC_from_CSP(Search_problem, Displayable):
+class Search_with_AC_from_CSP(Search_problem,Displayable):
     """A search problem with arc consistency and domain splitting
 
     A node is a CSP """
-
     def __init__(self, csp):
-        self.cons = Con_solver(csp)  # copy of the CSP
+        self.cons = Con_solver(csp)  #copy of the CSP
         self.domains = self.cons.make_arc_consistent()
 
     def is_goal(self, node):
         """node is a goal if all domains have 1 element"""
-        return all(len(node[var]) == 1 for var in node)
-
+        return all(len(node[var])==1 for var in node)
+    
     def start_node(self):
         return self.domains
-
-    def neighbors(self, node):
+    
+    def neighbors(self,node):
         """returns the neighboring nodes of node.
         """
         neighs = []
-        var = select(x for x in node if len(node[x]) > 1)
+        var = select(x for x in node if len(node[x])>1)
         if var:
             dom1, dom2 = partition_domain(node[var])
-            self.display(2, "Splitting", var, "into", dom1, "and", dom2)
-            to_do = self.cons.new_to_do(var, None)
-            for dom in [dom1, dom2]:
-                newdoms = copy_with_assign(node, var, dom)
-                cons_doms = self.cons.make_arc_consistent(newdoms, to_do)
-                if all(len(cons_doms[v]) > 0 for v in cons_doms):
+            self.display(2,"Splitting", var, "into", dom1, "and", dom2)
+            to_do = self.cons.new_to_do(var,None)
+            for dom in [dom1,dom2]:
+                newdoms = copy_with_assign(node,var,dom)
+                cons_doms = self.cons.make_arc_consistent(newdoms,to_do)
+                if all(len(cons_doms[v])>0 for v in cons_doms):
                     # all domains are non-empty
-                    neighs.append(Arc(node, cons_doms))
+                    neighs.append(Arc(node,cons_doms))
                 else:
-                    self.display(2, "...", var, "in", dom, "has no solution")
+                    self.display(2,"...",var,"in",dom,"has no solution")
         return neighs
 
-# from aipython.cspProblem import test
-# from aipython.searchGeneric import Searcher
-#
-# def ac_search_solver(csp):
-#     """arc consistency (search interface)"""
-#     sol = Searcher(Search_with_AC_from_CSP(csp)).search()
-#     if sol:
-#         return {v:select(d) for (v,d) in sol.end().items()}
-#
-# if __name__ == "__main__":
-#     test(ac_search_solver)
-#
-# Test Solving CSPs with Arc consistency and domain splitting:
-# from aipython.cspProblem import csp_simple1, csp_simple2, csp_extended, csp_crossword1, csp_crossword2, csp_crossword2d
-# Con_solver(simple_csp2).solve_one()
-# searcher1d = Searcher(Search_with_AC_from_CSP(simple_csp2))
-# print(searcher1d.search())
-# Searcher.max_display_level = 2  # display search trace (0 turns off)
-# searcher2c = Searcher(Search_with_AC_from_CSP(extended_csp))
-# print(searcher2c.search())
-# searcher3c = Searcher(Search_with_AC_from_CSP(crossword1))
-# print(searcher3c.search())
-# searcher4c = Searcher(Search_with_AC_from_CSP(crossword2))
-# print(searcher4c.search())
-# searcher5c = Searcher(Search_with_AC_from_CSP(crossword2d))
-# print(searcher5c.search())
+from cspExamples import test
+from searchGeneric import Searcher
+
+def ac_search_solver(csp):
+    """arc consistency (search interface)"""
+    sol = Searcher(Search_with_AC_from_CSP(csp)).search()
+    if sol:
+        return {v:select(d) for (v,d) in sol.end().items()}
+    
+if __name__ == "__main__":
+    test(ac_search_solver)
+
+from cspExamples import csp1, csp2, crossword1, crossword1d
+
+## Test Solving CSPs with Arc consistency and domain splitting:
+#Con_solver.max_display_level = 4  # display details of AC (0 turns off)
+#Con_solver(csp1).solve_one()
+#searcher1d = Searcher(Search_with_AC_from_CSP(csp1))
+#print(searcher1d.search())
+#Searcher.max_display_level = 2  # display search trace (0 turns off)
+#searcher2c = Searcher(Search_with_AC_from_CSP(csp2))
+#print(searcher2c.search())
+#searcher3c = Searcher(Search_with_AC_from_CSP(crossword1))
+#print(searcher3c.search())
+#searcher5c = Searcher(Search_with_AC_from_CSP(crossword1d))
+#print(searcher5c.search())
+
